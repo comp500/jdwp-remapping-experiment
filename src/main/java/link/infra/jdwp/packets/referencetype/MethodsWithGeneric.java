@@ -2,12 +2,17 @@ package link.infra.jdwp.packets.referencetype;
 
 import link.infra.jdwp.Remapper;
 import link.infra.jdwp.TypeSizeManager;
-import link.infra.jdwp.packets.PacketHandler;
+import link.infra.jdwp.packets.PacketDispatcher;
+import link.infra.jdwp.packets.RequestHandler;
+import link.infra.jdwp.packets.ResponseHandler;
 import link.infra.jdwp.packets.SerializationUtil;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
-public class MethodsWithGeneric implements PacketHandler.Tracked {
+public class MethodsWithGeneric implements RequestHandler {
 	private final Remapper remapper;
 	private final TypeSizeManager typeSizeManager;
 
@@ -17,27 +22,45 @@ public class MethodsWithGeneric implements PacketHandler.Tracked {
 	}
 
 	@Override
-	public byte[] handleCommand(byte[] data) throws IOException {
-		return data;
+	public void handleRequest(int id, byte flags, byte commandSet, byte command, byte[] data, PacketDispatcher dispatcher) {
+		dispatcher.dispatch(SerializationUtil.getRequestBytes(id, flags, commandSet, command, data));
+		dispatcher.setResponseHandler(id, new Response(SerializationUtil.readVarInt(ByteBuffer.wrap(data), typeSizeManager.getReferenceTypeID())));
 	}
 
-	@Override
-	public byte[] handleReply(byte[] data, short errorCode) throws IOException {
-		DataInputStream src = new DataInputStream(new ByteArrayInputStream(data));
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputStream dest = new DataOutputStream(baos);
+	private class Response implements ResponseHandler {
+		private final long referenceTypeID;
 
-		int methodsCount = src.readInt();
-		dest.writeInt(methodsCount);
-		for (int i = 0; i < methodsCount; i++) {
-			// TODO: make this handle IDSizes properly
-			dest.writeLong(src.readLong());
-			SerializationUtil.writeRemapMethodName(remapper, src, dest);
-			SerializationUtil.writeRemapJNITypeSignature(remapper, src, dest);
-			// TODO: handle method sigs as well
-			SerializationUtil.writeRemapGenericClassSignature(remapper, src, dest);
-			dest.writeInt(src.readInt());
+		public Response(long referenceTypeID) {
+			this.referenceTypeID = referenceTypeID;
 		}
-		return baos.toByteArray();
+
+		@Override
+		public void handleResponse(int id, byte flags, short errorCode, byte[] data, PacketDispatcher dispatcher) {
+			ByteBuffer src = ByteBuffer.wrap(data);
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			DataOutputStream dest = new DataOutputStream(baos);
+
+			try {
+				int methodsCount = src.getInt();
+				dest.writeInt(methodsCount);
+				for (int i = 0; i < methodsCount; i++) {
+					// TODO: store field information
+					SerializationUtil.writeThroughVarInt(src, dest, typeSizeManager.getFieldID());
+					// TODO: use cached reference type information (or defer if necessary)
+					SerializationUtil.writeString(dest, remapper.remapMethodName(null, SerializationUtil.readString(src)));
+					SerializationUtil.writeString(dest, remapper.remapJNITypeSignature(SerializationUtil.readString(src)));
+					// TODO: should this be method signature?
+					SerializationUtil.writeString(dest, remapper.remapGenericClassSignature(SerializationUtil.readString(src)));
+					dest.writeInt(src.getInt());
+				}
+
+				byte[] newData = baos.toByteArray();
+				dispatcher.dispatch(SerializationUtil.getResponseHeaderBytes(id, flags, errorCode, newData.length));
+				dispatcher.dispatch(newData);
+			} catch (IOException e) {
+				// TODO: different exception type? logger?
+				throw new RuntimeException(e);
+			}
+		}
 	}
 }

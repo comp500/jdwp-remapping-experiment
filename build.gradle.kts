@@ -14,8 +14,14 @@ repositories {
 dependencies {
     implementation("net.fabricmc:tiny-mappings-parser:0.3.0+build.17")
 
-    // TODO: remove?
-    testImplementation("junit:junit:4.13")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.6.2")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
 }
 
 application {

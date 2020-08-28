@@ -20,19 +20,12 @@ public class Server {
 		ServerSocket server = new ServerSocket(10000);
 		while (true) {
 			Socket clientSocket = server.accept();
-			new Thread(() -> {
-				try {
-					new ConnectionHandler(clientSocket, new TinyTreeRemapper(load()));
-				} catch (IOException e) {
-					e.printStackTrace();
-				} finally {
-					try {
-						clientSocket.close();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-			}, "jdwp experiment socket handler").start();
+			try {
+				new ConnectionHandler(clientSocket, new TinyTreeRemapper(load()));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			// TODO: make sure socket is properly closed
 		}
 	}
 }

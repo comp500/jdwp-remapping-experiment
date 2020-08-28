@@ -2,6 +2,9 @@ package link.infra.jdwp.packets;
 
 import link.infra.jdwp.Remapper;
 import link.infra.jdwp.TypeSizeManager;
+import link.infra.jdwp.packets.referencetype.FieldsWithGeneric;
+import link.infra.jdwp.packets.referencetype.MethodsWithGeneric;
+import link.infra.jdwp.packets.virtualmachine.AllClassesWithGeneric;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,10 +16,14 @@ public class RequestHandlerFactory {
 
 	public RequestHandlerFactory(Remapper remapper, TypeSizeManager typeSizeManager) {
 		Map<CommandIdentifier, RequestHandler> handlerMapMut = new HashMap<>();
-		//handlerMap.put(new PacketIdentifier(1, 20), new AllClassesWithGeneric(remapper, typeSizeManager));
 
-		//handlerMap.put(new PacketIdentifier(2, 14), new FieldsWithGeneric(remapper, typeSizeManager));
-		//handlerMap.put(new PacketIdentifier(2, 15), new MethodsWithGeneric(remapper, typeSizeManager));
+		// TODO: parse IDSizes
+
+		handlerMapMut.put(new CommandIdentifier(1, 20), new AllClassesWithGeneric(remapper, typeSizeManager));
+
+		handlerMapMut.put(new CommandIdentifier(2, 14), new FieldsWithGeneric(remapper, typeSizeManager));
+		handlerMapMut.put(new CommandIdentifier(2, 15), new MethodsWithGeneric(remapper, typeSizeManager));
+
 		handlerMap = Collections.unmodifiableMap(handlerMapMut);
 	}
 
