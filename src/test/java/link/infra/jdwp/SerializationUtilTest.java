@@ -21,16 +21,18 @@ public class SerializationUtilTest {
 		return Stream.generate(new Supplier<Arguments>() {
 			long i = 0;
 			int numBytes = 1;
-			final Random rand = new Random(10000);
+			final Random rand = new Random(30000);
 
 			@Override
 			public Arguments get() {
 				Arguments ret = Arguments.arguments(i, numBytes);
 				numBytes++;
 				if (numBytes > 8) {
-					i = rand.nextLong();
+					do {
+						i = rand.nextLong();
+					} while (i < 0);
 					numBytes = (Long.SIZE - Long.numberOfLeadingZeros(i));
-					numBytes = (int) Math.ceil((float)numBytes / 8);
+					numBytes = Math.max(1, (int) Math.ceil((float)numBytes / 8));
 				}
 				return ret;
 			}
